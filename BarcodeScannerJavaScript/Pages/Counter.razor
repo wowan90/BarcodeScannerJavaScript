@@ -1,0 +1,110 @@
+﻿@page "/counter"
+@inject IJSRuntime JSRuntime
+
+
+    <div class="flex-container">
+        <div id="qr-reader" style="width: 480px" class="row justify-content-md-center"></div>
+    </div>
+
+    <div class="row">
+        <div id="get-camera">
+            <button class="btn btn-info" @onclick="GetCameras"> Kamera freigabe</button>
+        </div>
+    </div>
+
+
+    @if (_videoInputDevices == null)
+    {
+        <p>Warte auf Kamera freigabe</p>
+    }
+    else
+    {
+        <div class="source-select-container">
+            <label>
+                Kamera auswählen:
+                <select class="video-select" @onchange="OnVideoInputSourceChanged">
+                    @foreach (var videoInputDevice in _videoInputDevices)
+                    {
+                        <option value="@videoInputDevice.id"> @videoInputDevice.label</option>
+                    }
+                </select>
+            </label>
+        </div>
+    }
+
+    <button class="btn btn-success" @onclick="Start"> Start</button>
+
+    <button class="btn btn-danger" @onclick="Stop"> Stop</button>
+
+    <div>
+        The Result: <span id="qr-reader-results"></span>
+    </div>
+
+    @code {
+
+        bool showScanner = false;
+
+        private IEnumerable<VideoInputDevice> _videoInputDevices;
+
+
+
+
+
+
+        async Task GetCameras()
+        {
+            _videoInputDevices = await JSRuntime.InvokeAsync<List<VideoInputDevice>>("getCameras");
+            Console.Write(_videoInputDevices);
+            StateHasChanged();
+        }
+
+        async Task Start()
+        {
+            //showScanner = true;
+            await JSRuntime.InvokeVoidAsync("startQrCodeReader");
+            StateHasChanged();
+        }
+
+        async Task Stop()
+        {
+            showScanner = false;
+            await JSRuntime.InvokeVoidAsync("stopScanning");
+            StateHasChanged();
+        }
+
+        protected override async Task OnAfterRenderAsync(bool firstRender)
+        {
+            if (firstRender)
+            {
+                _videoInputDevices = await JSRuntime.InvokeAsync<List<VideoInputDevice>>("getCameras");
+                Console.Write(_videoInputDevices);
+                StateHasChanged();
+            }
+        }
+
+        protected async void ChangeVideoInputSource(string deviceId)
+        {
+            await JSRuntime.InvokeVoidAsync("setSelectedDeviceId", deviceId);
+            RestartDecoding();
+        }
+
+        private async void RestartDecoding()
+        {
+            await Stop();
+            await Start();
+        }
+
+        protected void OnVideoInputSourceChanged(ChangeEventArgs args)
+        {
+            ChangeVideoInputSource(args.Value.ToString());
+        }
+
+        public class VideoInputDevice
+        {
+            public string id { get; set; }
+            public string label { get; set; }
+
+        }
+
+
+    }
